@@ -1,1 +1,0 @@
-from superbase_client import suparbase
