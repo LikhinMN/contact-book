@@ -16,15 +16,16 @@ st.title("📇 Contact Book")
 
 if st.session_state.user is None:
     st.subheader("🔐 Login / Sign Up")
-
     auth_mode = st.radio("Select option:", ["Login", "Sign Up"])
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
     if auth_mode == "Login":
         if st.button("Login"):
+            email_clean = email.strip()
+            password_clean = password.strip()
             try:
-                res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                res = supabase.auth.sign_in_with_password({"email": email_clean, "password": password_clean})
                 st.session_state.user = res.user
                 st.success(f"✅ Logged in as {res.user.email}")
                 st.experimental_rerun()
@@ -33,14 +34,16 @@ if st.session_state.user is None:
 
     elif auth_mode == "Sign Up":
         if st.button("Sign Up"):
-            try:
-                if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-                    st.warning("⚠️ Please enter a valid email address.")
-                else:
-                    res = supabase.auth.sign_up({"email": email, "password": password})
+            email_clean = email.strip()
+            password_clean = password.strip()
+            if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email_clean):
+                st.warning("⚠️ Please enter a valid email address.")
+            else:
+                try:
+                    res = supabase.auth.sign_up({"email": email_clean, "password": password_clean})
                     st.success("✅ Check your email to confirm your account!")
-            except Exception as e:
-                st.error(f"Sign Up failed: {e}")
+                except Exception as e:
+                    st.error(f"Sign Up failed: {e}")
 
 else:
     user = st.session_state.user
@@ -71,7 +74,6 @@ else:
             phone = st.text_input("Phone", key="phone")
             email_input = st.text_input("Email", key="email_input")
             address = st.text_area("Address", key="address")
-
             submitted = st.form_submit_button("Add Contact")
 
             if submitted:
@@ -88,7 +90,7 @@ else:
                     st.warning("⚠️ Phone too long! Max 20 characters.")
                 elif not phone.isdigit():
                     st.warning("⚠️ Phone must contain digits only!")
-                elif email_input and not re.match(r"[^@]+@[^@]+\.[^@]+", email_input):
+                elif email_input and not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email_input):
                     st.warning("⚠️ Invalid email address!")
                 else:
                     existing = supabase.table("contacts").select("*") \
@@ -115,17 +117,12 @@ else:
 
     elif menu == "📋 View & Manage Contacts":
         st.subheader("View & Manage Contacts")
-
         search_query = st.text_input("🔍 Search by name")
-
         contacts = supabase.table("contacts").select("*") \
             .eq("user_id", user.id).order("name").execute()
 
         if contacts.data:
-            filtered = [
-                c for c in contacts.data if search_query.lower() in c["name"].lower()
-            ]
-
+            filtered = [c for c in contacts.data if search_query.lower() in c["name"].lower()]
             if filtered:
                 for contact in filtered:
                     with st.expander(f"{contact['name']}"):
@@ -134,18 +131,10 @@ else:
                         st.write(f"🏠 **Address:** {contact['address']}")
 
                         with st.form(f"edit_{contact['id']}"):
-                            new_name = st.text_input(
-                                "Name", value=contact["name"], key=f"name_{contact['id']}"
-                            )
-                            new_phone = st.text_input(
-                                "Phone", value=contact["phone"], key=f"phone_{contact['id']}"
-                            )
-                            new_email = st.text_input(
-                                "Email", value=contact["email"], key=f"email_{contact['id']}"
-                            )
-                            new_address = st.text_area(
-                                "Address", value=contact["address"], key=f"address_{contact['id']}"
-                            )
+                            new_name = st.text_input("Name", value=contact["name"], key=f"name_{contact['id']}")
+                            new_phone = st.text_input("Phone", value=contact["phone"], key=f"phone_{contact['id']}")
+                            new_email = st.text_input("Email", value=contact["email"], key=f"email_{contact['id']}")
+                            new_address = st.text_area("Address", value=contact["address"], key=f"address_{contact['id']}")
 
                             col1, col2 = st.columns(2)
                             with col1:
@@ -167,7 +156,7 @@ else:
                                     st.warning("⚠️ Phone too long! Max 20 characters.")
                                 elif not new_phone.isdigit():
                                     st.warning("⚠️ Phone must contain digits only!")
-                                elif new_email and not re.match(r"[^@]+@[^@]+\.[^@]+", new_email):
+                                elif new_email and not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", new_email):
                                     st.warning("⚠️ Invalid email address!")
                                 else:
                                     supabase.table("contacts").update({
@@ -180,8 +169,7 @@ else:
                                     st.experimental_rerun()
 
                             if delete:
-                                supabase.table("contacts").delete() \
-                                    .eq("id", contact["id"]).eq("user_id", user.id).execute()
+                                supabase.table("contacts").delete().eq("id", contact["id"]).eq("user_id", user.id).execute()
                                 st.warning(f"🗑️ Contact '{contact['name']}' deleted.")
                                 st.experimental_rerun()
             else:
